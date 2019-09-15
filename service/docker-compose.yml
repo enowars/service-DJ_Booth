@@ -1,0 +1,8 @@
+version: '2.3'
+services:
+  dj_stand:
+    build: .
+    volumes:
+      - .:/service
+    ports:
+      - "7556:7556"
