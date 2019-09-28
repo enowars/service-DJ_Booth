@@ -1,5 +1,9 @@
 package main
 
+// #cgo LDFLAGS: -L./ -ldj
+// #include <dj.h>
+import "C"
+
 import (
 	"bufio"
 	"encoding/json"
