@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"strings"
@@ -50,7 +51,7 @@ func register(conn net.Conn) {
 
 	username = strings.Trim(username, "\n")
 
-	conn.Write([]byte("And I need your password: "))
+	conn.Write([]byte("And your password: "))
 	password, err := bufio.NewReader(conn).ReadString('\n')
 
 	if err != nil {
@@ -59,8 +60,9 @@ func register(conn net.Conn) {
 	}
 
 	isAdmin := true
-	if len(username) != 5 && username != "admin" {
+	if len(username) != 5 || username != "admin" {
 		isAdmin := false
+		fmt.Println("Debug: Adding user", username, "with Password:", password, ". isAdmin:", isAdmin)
 	}
 
 	password = strings.Trim(password, "\n")
@@ -76,5 +78,21 @@ func register(conn net.Conn) {
 }
 
 func login(conn net.Conn) {
+	conn.Write([]byte("Welcome back!\nI need your username: "))
+	username, err := bufio.NewReader(conn).ReadString('\n')
 
+	if err != nil {
+		conn.Write([]byte("Sorry something went wrong!"))
+		return
+	}
+
+	username = strings.Trim(username, "\n")
+
+	conn.Write([]byte("And your password: "))
+	password, err := bufio.NewReader(conn).ReadString('\n')
+
+	if err != nil {
+		conn.Write([]byte("Sorry something went wrong!"))
+		return
+	}
 }
