@@ -10,8 +10,18 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"os"
+	"strconv"
 	"strings"
+	"unsafe"
 )
+
+type db struct {
+	Tracks   []string `json:"tracks"`
+	User     string   `json:"user"`
+	Password string   `json:"password"`
+	Admin    bool     `json:"admin"`
+}
 
 func main() {
 	ln, _ := net.Listen("tcp", ":7556")
@@ -38,10 +48,190 @@ func handle(conn net.Conn) {
 	case "r":
 		register(conn)
 	case "l":
-		login(conn)
+		if user, ret := login(conn); ret == 0 {
+			quit := false
+			for !quit {
+				menu(conn, user.Admin)
+				conn.Write([]byte("What do you want to do? "))
+				choice, err := bufio.NewReader(conn).ReadString('\n')
+
+				if err != nil {
+					conn.Write([]byte("Sorry something went wrong!"))
+					return
+				}
+
+				choice = strings.ToLower(strings.Trim(choice, "\n"))
+
+				switch choice {
+				case "a":
+					if add(conn, user) == -1 {
+						return
+					}
+				case "r":
+					if remove(conn, user) == -1 {
+						return
+					}
+				case "d":
+					if debug(conn) == -1 {
+						return
+					}
+				case "l":
+					list(conn, user)
+				case "s":
+					if selectNext(conn, user) == -1 {
+						return
+					}
+				case "p":
+					playNext(conn, user)
+				case "c":
+					if changePassword(conn, user) == -1 {
+						return
+					}
+				case "q":
+					return
+				default:
+					conn.Write([]byte(choice + " is invalid!"))
+					continue
+				}
+			}
+		}
 	default:
 		conn.Write([]byte("Sorry but I don't know what you mean with " + choice + "\n"))
 	}
+}
+
+func changePassword(conn net.Conn, user db) int {
+	conn.Write([]byte("New Password: "))
+	newPass, err := bufio.NewReader(conn).ReadString('\n')
+
+	if err != nil {
+		conn.Write([]byte("Sorry something went wrong!"))
+		return -1
+	}
+
+	newPass = strings.Trim(newPass, "\n")
+	newPassC := C.CString(newPass)
+	defer C.free(unsafe.Pointer(newPassC))
+	C.new_pass((*C.user_db)(unsafe.Pointer(&user)), newPassC)
+	return 0
+}
+
+func playNext(conn net.Conn, user db) {
+	current := C.play_next((*C.user_db)(unsafe.Pointer(&user)))
+	conn.Write([]byte("Currently Playing: " + C.GoString(current)))
+}
+
+func selectNext(conn net.Conn, user db) int {
+	conn.Write([]byte("Which song do you want to play next?"))
+	for i, s := range user.Tracks {
+		conn.Write([]byte(strconv.Itoa(i) + ") " + s))
+	}
+
+	conn.Write([]byte("> "))
+	choice, err := bufio.NewReader(conn).ReadString('\n')
+
+	if err != nil {
+		conn.Write([]byte("Sorry something went wrong!"))
+		return -1
+	}
+
+	choice = strings.ToLower(strings.Trim(choice, "\n"))
+
+	if c, err := strconv.Atoi(choice); err != nil || c < 0 || c >= len(user.Tracks) {
+		conn.Write([]byte(choice + " is not valid!"))
+		return 0
+	} else {
+		tmp := []string{user.Tracks[c]}
+		tmp = append(tmp, user.Tracks[:c]...)
+		user.Tracks = append(tmp, user.Tracks[c+1:]...)
+	}
+	return 0
+}
+
+func list(conn net.Conn, user db) {
+	for i, t := range user.Tracks {
+		conn.Write([]byte(strconv.Itoa(i) + ") " + t))
+	}
+}
+
+func debug(conn net.Conn) int {
+	files, err := ioutil.ReadDir("./db/")
+	if err != nil {
+		conn.Write([]byte("Sorry something went wrong!"))
+		return -1
+	}
+	for _, f := range files {
+		content, err := ioutil.ReadFile("./db/" + f.Name())
+		if err != nil {
+			conn.Write([]byte("Sorry something went wrong!"))
+			return -1
+		}
+		var tmpDB db
+		err = json.Unmarshal(content, &tmpDB)
+		if err != nil {
+			conn.Write([]byte("Sorry something went wrong!"))
+			return -1
+		}
+		for _, t := range tmpDB.Tracks {
+			conn.Write([]byte(f.Name() + ") " + t))
+		}
+	}
+	return 0
+}
+
+func add(conn net.Conn, user db) int {
+	conn.Write([]byte("What is the name of the song?\n> "))
+	songName, err := bufio.NewReader(conn).ReadString('\n')
+
+	if err != nil {
+		conn.Write([]byte("Sorry something went wrong!"))
+		return -1
+	}
+
+	songName = strings.Trim(songName, "\n")
+	user.Tracks = append(user.Tracks, songName)
+	return 0
+}
+
+func remove(conn net.Conn, user db) int {
+	conn.Write([]byte("Which song do you want to remove?"))
+	for i, s := range user.Tracks {
+		conn.Write([]byte(strconv.Itoa(i) + ") " + s))
+	}
+
+	conn.Write([]byte("> "))
+	choice, err := bufio.NewReader(conn).ReadString('\n')
+
+	if err != nil {
+		conn.Write([]byte("Sorry something went wrong!"))
+		return -1
+	}
+
+	choice = strings.ToLower(strings.Trim(choice, "\n"))
+
+	if c, err := strconv.Atoi(choice); err != nil || c < 0 || c >= len(user.Tracks) {
+		conn.Write([]byte(choice + " is not valid!"))
+		return 0
+	} else {
+		user.Tracks = append(user.Tracks[:c], user.Tracks[c+1:]...)
+	}
+	return 0
+}
+
+func menu(conn net.Conn, isAdmin bool) {
+	conn.Write([]byte("==============================="))
+	conn.Write([]byte("=   Your personal DJ booth!   ="))
+	conn.Write([]byte("==============================="))
+	conn.Write([]byte("(A)dd a song to your list"))
+	conn.Write([]byte("(R)emove a song from your list"))
+	if isAdmin {
+		conn.Write([]byte("(D)isplay all tracks (Debug)"))
+	}
+	conn.Write([]byte("(L)ist all songs in your list"))
+	conn.Write([]byte("(S)elect a song to play next"))
+	conn.Write([]byte("(P)lay the next song"))
+	conn.Write([]byte("(C)hange your password"))
+	conn.Write([]byte("(Q)uit"))
 }
 
 func register(conn net.Conn) {
@@ -81,13 +271,13 @@ func register(conn net.Conn) {
 	ioutil.WriteFile("db/"+username+".db", tmp, 0644)
 }
 
-func login(conn net.Conn) {
+func login(conn net.Conn) (db, int) {
 	conn.Write([]byte("Welcome back!\nI need your username: "))
 	username, err := bufio.NewReader(conn).ReadString('\n')
 
 	if err != nil {
 		conn.Write([]byte("Sorry something went wrong!"))
-		return
+		return db{}, -1
 	}
 
 	username = strings.Trim(username, "\n")
@@ -97,6 +287,33 @@ func login(conn net.Conn) {
 
 	if err != nil {
 		conn.Write([]byte("Sorry something went wrong!"))
-		return
+		return db{}, -1
 	}
+	password = strings.Trim(password, "\n")
+
+	if _, err := os.Stat("./db/" + username + ".db"); os.IsNotExist(err) {
+		conn.Write([]byte("Sorry Username or Password are wrong"))
+		return db{}, -1
+	}
+
+	content, err := ioutil.ReadFile("db/" + username + ".db")
+	if err != nil {
+		conn.Write([]byte("Sorry something went wrong!"))
+		return db{}, -1
+	}
+
+	var userDB db
+	err = json.Unmarshal(content, &userDB)
+	if err != nil {
+		conn.Write([]byte("Sorry something went wrong!"))
+		return db{}, -1
+	}
+
+	if password != userDB.Password {
+		fmt.Printf("Want=%v(%T) Have=%v(%T)", userDB.Password, userDB.Password, password, password)
+		conn.Write([]byte("Sorry Username or Password are wrong!"))
+		return db{}, -1
+	}
+
+	return userDB, 0
 }
