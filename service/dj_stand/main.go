@@ -90,7 +90,7 @@ func handle(conn net.Conn) {
 				case "q":
 					return
 				default:
-					conn.Write([]byte(choice + " is invalid!"))
+					conn.Write([]byte(choice + " is invalid!\n"))
 					continue
 				}
 			}
@@ -113,12 +113,20 @@ func changePassword(conn net.Conn, user db) int {
 	newPassC := C.CString(newPass)
 	defer C.free(unsafe.Pointer(newPassC))
 	C.new_pass((*C.user_db)(unsafe.Pointer(&user)), newPassC)
+	tmp, err := json.Marshal(user)
+
+	if err != nil {
+		conn.Write([]byte("Sorry something went wrong!"))
+		return -1
+	}
+
+	ioutil.WriteFile("db/"+user.User+".db", tmp, 0644)
 	return 0
 }
 
 func playNext(conn net.Conn, user db) {
 	current := C.play_next((*C.user_db)(unsafe.Pointer(&user)))
-	conn.Write([]byte("Currently Playing: " + C.GoString(current)))
+	conn.Write([]byte("Currently Playing: " + C.GoString(current) + "\n"))
 }
 
 func selectNext(conn net.Conn, user db) int {
@@ -150,7 +158,7 @@ func selectNext(conn net.Conn, user db) int {
 
 func list(conn net.Conn, user db) {
 	for i, t := range user.Tracks {
-		conn.Write([]byte(strconv.Itoa(i) + ") " + t))
+		conn.Write([]byte(strconv.Itoa(i) + ") " + t + "\n"))
 	}
 }
 
@@ -173,7 +181,7 @@ func debug(conn net.Conn) int {
 			return -1
 		}
 		for _, t := range tmpDB.Tracks {
-			conn.Write([]byte(f.Name() + ") " + t))
+			conn.Write([]byte(f.Name() + ") " + t + "\n"))
 		}
 	}
 	return 0
@@ -210,7 +218,7 @@ func remove(conn net.Conn, user db) int {
 	choice = strings.ToLower(strings.Trim(choice, "\n"))
 
 	if c, err := strconv.Atoi(choice); err != nil || c < 0 || c >= len(user.Tracks) {
-		conn.Write([]byte(choice + " is not valid!"))
+		conn.Write([]byte(choice + " is not valid!\n"))
 		return 0
 	} else {
 		user.Tracks = append(user.Tracks[:c], user.Tracks[c+1:]...)
@@ -219,19 +227,19 @@ func remove(conn net.Conn, user db) int {
 }
 
 func menu(conn net.Conn, isAdmin bool) {
-	conn.Write([]byte("==============================="))
-	conn.Write([]byte("=   Your personal DJ booth!   ="))
-	conn.Write([]byte("==============================="))
-	conn.Write([]byte("(A)dd a song to your list"))
-	conn.Write([]byte("(R)emove a song from your list"))
+	conn.Write([]byte("===============================\n"))
+	conn.Write([]byte("=   Your personal DJ booth!   =\n"))
+	conn.Write([]byte("===============================\n"))
+	conn.Write([]byte("(A)dd a song to your list\n"))
+	conn.Write([]byte("(R)emove a song from your list\n"))
 	if isAdmin {
-		conn.Write([]byte("(D)isplay all tracks (Debug)"))
+		conn.Write([]byte("(D)isplay all tracks (Debug)\n"))
 	}
-	conn.Write([]byte("(L)ist all songs in your list"))
-	conn.Write([]byte("(S)elect a song to play next"))
-	conn.Write([]byte("(P)lay the next song"))
-	conn.Write([]byte("(C)hange your password"))
-	conn.Write([]byte("(Q)uit"))
+	conn.Write([]byte("(L)ist all songs in your list\n"))
+	conn.Write([]byte("(S)elect a song to play next\n"))
+	conn.Write([]byte("(P)lay the next song\n"))
+	conn.Write([]byte("(C)hange your password\n"))
+	conn.Write([]byte("(Q)uit\n"))
 }
 
 func register(conn net.Conn) {
