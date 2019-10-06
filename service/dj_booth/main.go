@@ -232,7 +232,7 @@ func menu(conn net.Conn, isAdmin bool) {
 }
 
 func register(conn net.Conn) {
-	conn.Write([]byte("So you want to become a better DJ?\nWell then I need your username: "))
+	conn.Write([]byte("\nSo you want to become a better DJ?\nWell then I need your username: "))
 	username, err := bufio.NewReader(conn).ReadString('\n')
 
 	if err != nil {
@@ -250,13 +250,13 @@ func register(conn net.Conn) {
 		return
 	}
 
+	password = strings.Trim(password, "\n")
 	isAdmin := true
 	if len(username) != 5 || username != "admin" {
 		isAdmin := false
 		fmt.Println("Debug: Adding user", username, "with Password:", password, ". isAdmin:", isAdmin)
 	}
 
-	password = strings.Trim(password, "\n")
 	newDB := db{User: username, Password: password, Admin: isAdmin, Tracks: []string{}}
 	tmp, err := json.Marshal(newDB)
 
