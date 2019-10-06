@@ -1,5 +1,5 @@
 {
-    "name": "DJ_Stand",
+    "name": "DJ_Booth",
     "ports": [7556],
     "checkerport": 4004,
     "description": "Become a cool and hip DJ. For free."

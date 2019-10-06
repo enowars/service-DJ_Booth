@@ -1,4 +1,4 @@
-# DJ Stand
+# DJ Booth
 
 ## Difficulty
 
