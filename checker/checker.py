@@ -461,7 +461,7 @@ class DJBoothChecker(BaseChecker):
 
         logger.debug("Submitting all the songs")
         selected_songs = [random.choice(songs) for x in range(random.randrange(3, 5))]
-        rand_idx = random.randint(0,len(x)-1)
+        rand_idx = random.randint(0,len(selected_songs)-1)
         selected_songs = selected_songs[:rand_idx] + [task.flag] + selected_songs[rand_idx:]
         for song in selected_songs:
             logger.debug("Submitting song: {} for user {}".format(song, user))
