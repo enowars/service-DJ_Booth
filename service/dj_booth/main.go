@@ -186,7 +186,6 @@ func (user *db) add(conn net.Conn) int {
 
 	songName = strings.Trim(songName, "\n")
 	user.Tracks = append(user.Tracks, songName)
-	fmt.Println(user.Tracks)
 	return 0
 }
 
