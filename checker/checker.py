@@ -405,7 +405,7 @@ Pussy Lounge 2017
 Keeping The Rave Alive: The Ravers Revolution
 Reverze 2014
 Maschen-Drat-Zaun
-""".split()
+""".split("\n")
 
 
 class DJBoothChecker(BaseChecker):
