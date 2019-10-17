@@ -2,23 +2,7 @@ version: '3.6'
 services:
   dj_booth-frontend:
     build: .
-    image: dockerreg.enowars.com:5000/dj_booth-backend
-    networks:
-      - bridge
-      - enoverlay
-    deploy:
-      labels:
-        - "traefik.enable=true"
-        - "traefik.backend=dj_booth-checker"
-        - "traefik.docker.network=enoverlay"
-        - "traefik.frontend.rule=Host:dj_booth.checker.enowars.com,service2.checker.enowars.com"
-        - "traefik.port=80"
-      replicas: 2
+    ports:
+      - 8001:8080
   mongodb:
     image: mongo
-
-networks:
-  bridge:
-    external: true
-  enoverlay:
-    external: true

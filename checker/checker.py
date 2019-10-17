@@ -412,7 +412,7 @@ class DJBoothChecker(BaseChecker):
     port = 8000
 
     def __init__(self):
-        super(DJBoothChecker, self).__init__("DJBooth", 7556, 2, 0, 0)
+        super(DJBoothChecker, self).__init__("DJBooth", 8080, 1, 0, 0)
 
     async def create_user(self, user: string, password: string) -> None:
         reader, writer = await asyncio.open_connection(self.address, self.port)
