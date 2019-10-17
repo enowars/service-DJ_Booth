@@ -409,40 +409,40 @@ Maschen-Drat-Zaun
 
 
 class DJBoothChecker(BaseChecker):
-    port = 8000
-
     def __init__(self):
+        self.port = 8000
         super(DJBoothChecker, self).__init__("DJBooth", 8080, 1, 0, 0)
 
-    async def create_user(self, user: string, password: string) -> None:
-        reader, writer = await asyncio.open_connection(self.address, self.port)
-        await reader.readuntil(": ")
+    async def create_user(self, user: string, password: string, addr: string) -> None:
+        reader, writer = await asyncio.open_connection(addr, self.port)
+        await reader.readuntil(b": ")
         writer.write(b"r\n")
-        await reader.readuntil(": ")
+        await reader.readuntil(b": ")
         writer.write(user.encode() + b"\n")
-        await reader.readuntil(": ")
+        await reader.readuntil(b": ")
         writer.write(password.encode() + b"\n")
         writer.close()
 
-    async def login_user(self, user: string, password: string) -> (asyncio.StreamReader, asyncio.StreamWriter):
-        reader, writer = await asyncio.open_connection(self.address, self.port)
-        await reader.readuntil(": ")
+    async def login_user(self, user: string, password: string, addr: string) -> (asyncio.StreamReader, asyncio.StreamWriter):
+        reader, writer = await asyncio.open_connection(addr, self.port)
+        await reader.readuntil(b": ")
         writer.write(b"l\n")
-        await reader.readuntil(": ")
+        await reader.readuntil(b": ")
         writer.write(user.encode() + b"\n")
-        await reader.readuntil(": ")
+        await reader.readuntil(b": ")
         writer.write(password.encode() + b"\n")
-        await reader.readuntil("? ")
+        await reader.readuntil(b"? ")
 
         return reader, writer
 
     async def submit_song(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, song: string) -> None:
         writer.write(b"a\n")
-        await reader.readuntil("> ")
+        await reader.readuntil(b"> ")
         writer.write(song.encode() + b"\n")
-        await reader.readuntil("? ")
+        await reader.readuntil(b"? ")
 
     async def putflag(self, logger: LoggerAdapter, task: CheckerTaskMessage, collection: MotorCollection) -> None:
+        self.address = task.address
         tag = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(20))
         user = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(20))
         passw = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(20))
@@ -460,7 +460,7 @@ class DJBoothChecker(BaseChecker):
         logger.debug("Logged in as User: {}".format(user))
 
         logger.debug("Submitting all the songs")
-        selected_songs = [random.choice(songs) for x in random.randrange(3, 5)]
+        selected_songs = [random.choice(songs) for x in range(random.randrange(3, 5))]
         rand_idx = random.randint(0,len(x)-1)
         selected_songs = selected_songs[:rand_idx] + [task.flag] + selected_songs[rand_idx:]
         for song in selected_songs:
@@ -471,13 +471,7 @@ class DJBoothChecker(BaseChecker):
         writer.write(b"q\n")
 
     async def getflag(self, logger: LoggerAdapter, task: CheckerTaskMessage, collection: MotorCollection) -> None:
-        await self.test(logger, collection)
-        try:
-            tag = self.team_db[self.flag]
-        except KeyError as ex:
-            raise BrokenServiceException("Inconsistent Database: Couldn't get tag for team/flag ({})".format(self.flag))
-
-        
+        return
 
     async def putnoise(self, logger: LoggerAdapter, task: CheckerTaskMessage, collection: MotorCollection) -> None:
         pass
