@@ -3,9 +3,9 @@ import logging
 import sys
 import asyncio
 import random
-import string
 import json
 
+from string import ascii_letters, digits
 from enochecker_async import BaseChecker, BrokenServiceException, create_app, OfflineException, ELKFormatter, CheckerTaskMessage
 from logging import LoggerAdapter
 from motor import MotorCollection
@@ -413,73 +413,115 @@ class DJBoothChecker(BaseChecker):
         self.port = 8000
         super(DJBoothChecker, self).__init__("DJBooth", 8080, 1, 0, 0)
 
-    async def create_user(self, user: string, password: string, addr: string) -> None:
-        reader, writer = await asyncio.open_connection(addr, self.port)
-        await reader.readuntil(b": ")
-        writer.write(b"r\n")
-        await reader.readuntil(b": ")
-        writer.write(user.encode() + b"\n")
-        await reader.readuntil(b": ")
-        writer.write(password.encode() + b"\n")
-        writer.close()
+    async def create_user(self, user, password, addr):
+        try:
+            reader, writer = await asyncio.open_connection(addr, self.port)
+            await reader.readuntil(b": ")
+            writer.write(b"r\n")
+            await reader.readuntil(b": ")
+            writer.write(user.encode() + b"\n")
+            await reader.readuntil(b": ")
+            writer.write(password.encode() + b"\n")
+            writer.close()
+        except Exception as e:
+            raise BrokenServiceException("Couldn't create the user {}, {}".format(user, e))
 
-    async def login_user(self, user: string, password: string, addr: string) -> (asyncio.StreamReader, asyncio.StreamWriter):
-        reader, writer = await asyncio.open_connection(addr, self.port)
-        await reader.readuntil(b": ")
-        writer.write(b"l\n")
-        await reader.readuntil(b": ")
-        writer.write(user.encode() + b"\n")
-        await reader.readuntil(b": ")
-        writer.write(password.encode() + b"\n")
-        await reader.readuntil(b"? ")
+    async def login_user(self, user, password, addr):
+        try:
+            reader, writer = await asyncio.open_connection(addr, self.port)
+            await reader.readuntil(b": ")
+            writer.write(b"l\n")
+            await reader.readuntil(b": ")
+            writer.write(user.encode() + b"\n")
+            await reader.readuntil(b": ")
+            writer.write(password.encode() + b"\n")
+            await reader.readuntil(b"? ")
 
-        return reader, writer
+            return reader, writer
+        except Exception as e:
+            raise BrokenServiceException("Couldn't log in as the user {}, {}".format(user, e))
 
-    async def submit_song(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, song: string) -> None:
-        writer.write(b"a\n")
-        await reader.readuntil(b"> ")
-        writer.write(song.encode() + b"\n")
-        await reader.readuntil(b"? ")
+    async def submit_song(self, reader, writer, song):
+        try:
+            writer.write(b"a\n")
+            await reader.readuntil(b"> ")
+            writer.write(song.encode() + b"\n")
+            await reader.readuntil(b"? ")
+        except Exception as e:
+            raise BrokenServiceException("Couldn't submit Song {}, {}".format(song, e))
 
-    async def putflag(self, logger: LoggerAdapter, task: CheckerTaskMessage, collection: MotorCollection) -> None:
-        self.address = task.address
-        tag = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(20))
-        user = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(20))
-        passw = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(20))
+    async def get_song_list(self, reader, writer):
+        try:
+            writer.write(b"l\n")
+            l = await reader.readuntil(b"\n\n")
+            await reader.readuntil(b"? ")
+            l = [x.decode().split(") ")[1] for x in l.split(b"\n")]
+            return l
+        except Exception as e:
+            raise BrokenServiceException("Couldn't get the full songlist, {}".format(e))
 
-        await collection.insert_one({ 'flag' : task.flag, 'tag': tag , 'user': user, 'password': passw })
+    async def putflag(self, logger, task, collection):
+        try:
+            logger.debug("Putting flag {}".format(task.flag))
+            self.address = task.address
+            tag = ''.join(random.choice(ascii_letters + digits) for _ in range(20))
+            user = ''.join(random.choice(ascii_letters + digits) for _ in range(20))
+            passw = ''.join(random.choice(ascii_letters + digits) for _ in range(20))
 
-        logger.debug("Registering User: {} with Password: {}".format(user, passw))
-        await self.create_user(user, passw)
-        logger.debug("Registered User: {}".format(user))
+            await collection.insert_one({ 'flag' : task.flag, 'tag': tag , 'user': user, 'password': passw })
 
-        logger.debug("Putting Flag: {}".format(task.flag))
+            logger.debug("Registering User: {} with Password: {}".format(user, passw))
+            await self.create_user(user, passw, task.address)
+            logger.debug("Registered User: {}".format(user))
 
-        logger.debug("Logging in User: {}".format(user))
-        reader, writer = await self.login_user(user, passw)
-        logger.debug("Logged in as User: {}".format(user))
+            logger.debug("Putting Flag: {}".format(task.flag))
 
-        logger.debug("Submitting all the songs")
-        selected_songs = [random.choice(songs) for x in range(random.randrange(3, 5))]
-        rand_idx = random.randint(0,len(selected_songs)-1)
-        selected_songs = selected_songs[:rand_idx] + [task.flag] + selected_songs[rand_idx:]
-        for song in selected_songs:
-            logger.debug("Submitting song: {} for user {}".format(song, user))
-            await self.submit_song(reader, writer, song)
-        logger.debug("Done submitting all the songs. Quitting!")
+            logger.debug("Logging in User: {}".format(user))
+            reader, writer = await self.login_user(user, passw, task.address)
+            logger.debug("Logged in as User: {}".format(user))
 
-        writer.write(b"q\n")
+            logger.debug("Submitting all the songs")
+            selected_songs = [random.choice(songs) for x in range(random.randrange(3, 5))]
+            rand_idx = random.randint(0,len(selected_songs)-1)
+            selected_songs = selected_songs[:rand_idx] + [task.flag] + selected_songs[rand_idx:]
+            for song in selected_songs:
+                logger.debug("Submitting song: {} for user {}".format(song, user))
+                await self.submit_song(reader, writer, song)
+            logger.debug("Done submitting all the songs. Quitting!")
 
-    async def getflag(self, logger: LoggerAdapter, task: CheckerTaskMessage, collection: MotorCollection) -> None:
-        return
+            writer.write(b"q\n")
+        except Exception as e:
+            raise BrokenServiceException("Failed to put flag: {}, {}".format(task.flag, e))
 
-    async def putnoise(self, logger: LoggerAdapter, task: CheckerTaskMessage, collection: MotorCollection) -> None:
+    async def getflag(self, logger, task, collection):
+        try:
+            logger.debug("Getting flag {}".format(task.flag))
+            data = await collection.find_one({ "flag": task.flag })
+            if data is None:
+                raise BrokenServiceException("Couldn't retrieve the db for {}".format(task.flag))
+            user = data["user"]
+            passw = data["password"]
+
+            logger.debug("Logging is as User: {}".format(user))
+            reader, writer = await self.login_user(user, passw, task.address)
+            logger.debug("Logged is as User: {}".format(user))
+
+            logger.debug("Querying the songs")
+            song_list = await self.get_song_list(reader, writer)
+            if task.flag not in song_list:
+                raise BrokenServiceException("Flag {} not in songlist {}".format(task.flag, song_list))
+
+            writer.write(b"q\n")
+        except Exception as e:
+            raise BrokenServiceException("Failed to get flag: {}, {}".format(task.flag, e))
+
+    async def putnoise(self, logger, task, collection):
         pass
 
-    async def getnoise(self, logger: LoggerAdapter, task: CheckerTaskMessage, collection: MotorCollection) -> None:
+    async def getnoise(self, logger, task, collection):
         pass
 
-    async def havoc(self, logger: LoggerAdapter, task: CheckerTaskMessage, collection: MotorCollection) -> None:
+    async def havoc(self, logger, task, collection):
         pass
 
 logger = logging.getLogger()
