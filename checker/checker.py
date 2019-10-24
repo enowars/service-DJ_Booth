@@ -410,7 +410,7 @@ Maschen-Drat-Zaun
 
 class DJBoothChecker(BaseChecker):
     def __init__(self):
-        self.port = 8000
+        self.port = 7556
         super(DJBoothChecker, self).__init__("DJBooth", 8080, 1, 0, 0)
 
     async def create_user(self, user, password, addr):
