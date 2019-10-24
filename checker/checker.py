@@ -458,7 +458,7 @@ class DJBoothChecker(BaseChecker):
             writer.write(b"l\n")
             l = await reader.readuntil(b"\n\n")
             await reader.readuntil(b"? ")
-            l.strip()
+            l = l.strip()
             l = [x.decode().split(") ")[1] for x in l.split(b"\n")]
             return l
         except Exception as e:
