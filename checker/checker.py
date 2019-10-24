@@ -413,7 +413,10 @@ class DJBoothChecker(BaseChecker):
 
     async def create_user(self, user, password, addr):
         try:
-            reader, writer = await asyncio.open_connection(addr, self.port)
+            try:
+                reader, writer = await asyncio.open_connection(addr, self.port)
+            except:
+                raise OfflineException("Couldn't connect to {}:{}".format(addr, self.port))
             ret = await reader.readuntil(b": ")
             writer.write(b"r\n")
             await reader.readuntil(b": ")
@@ -421,12 +424,17 @@ class DJBoothChecker(BaseChecker):
             await reader.readuntil(b": ")
             writer.write(password.encode() + b"\n")
             writer.close()
+        except OfflineException as e:
+            raise e
         except Exception as e:
             raise BrokenServiceException("Couldn't create the user {}, {}".format(user, e))
 
     async def login_user(self, user, password, addr):
         try:
-            reader, writer = await asyncio.open_connection(addr, self.port)
+            try:
+                reader, writer = await asyncio.open_connection(addr, self.port)
+            except:
+                raise OfflineException("Couldn't connect to {}:{}".format(addr, self.port))
             ret = await reader.readuntil(b": ")
             writer.write(b"l\n")
             await reader.readuntil(b": ")
@@ -439,6 +447,8 @@ class DJBoothChecker(BaseChecker):
             await reader.readuntil(b"? ")
 
             return reader, writer
+        except OfflineException as e:
+            raise e
         except Exception as e:
             raise BrokenServiceException("Couldn't log in as the user {}, {}".format(user, e))
 
