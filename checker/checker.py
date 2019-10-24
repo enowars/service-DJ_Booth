@@ -11,8 +11,7 @@ from logging import LoggerAdapter
 from motor import MotorCollection
 
 
-songs = """
-Shell Shock
+songs = """Shell Shock
 And I'm Like (DJ Edit)
 Forbidden (DJ Edit)
 Space Inavder (Wulfx Remix)
@@ -404,8 +403,7 @@ Priests
 Pussy Lounge 2017
 Keeping The Rave Alive: The Ravers Revolution
 Reverze 2014
-Maschen-Drat-Zaun
-""".split("\n")
+Maschen-Drat-Zaun""".split("\n")
 
 
 class DJBoothChecker(BaseChecker):
