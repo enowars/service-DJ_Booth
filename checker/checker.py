@@ -415,16 +415,8 @@ class DJBoothChecker(BaseChecker):
 
     async def create_user(self, user, password, addr):
         try:
-            i = 0
-            while True:
-                try:
-                    reader, writer = await asyncio.open_connection(addr, self.port)
-                    await reader.readuntil(b": ")
-                    i += 1
-                    if i > 5:
-                        raise BrokenServiceException("Couldn't connect to {}".format(addr))
-                except asyncio.IncompleteReadError:
-                    continue
+            reader, writer = await asyncio.open_connection(addr, self.port)
+            ret = await reader.readuntil(b": ")
             writer.write(b"r\n")
             await reader.readuntil(b": ")
             writer.write(user.encode() + b"\n")
@@ -436,16 +428,8 @@ class DJBoothChecker(BaseChecker):
 
     async def login_user(self, user, password, addr):
         try:
-            i = 0
-            while True:
-                try:
-                    reader, writer = await asyncio.open_connection(addr, self.port)
-                    await reader.readuntil(b": ")
-                    i += 1
-                    if i > 5:
-                        raise BrokenServiceException("Couldn't connect to {}".format(addr))
-                except asyncio.IncompleteReadError:
-                    continue
+            reader, writer = await asyncio.open_connection(addr, self.port)
+            ret = await reader.readuntil(b": ")
             writer.write(b"l\n")
             await reader.readuntil(b": ")
             writer.write(user.encode() + b"\n")
