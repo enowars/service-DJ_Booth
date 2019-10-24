@@ -457,11 +457,11 @@ class DJBoothChecker(BaseChecker):
         try:
             writer.write(b"l\n")
             l = await reader.readuntil(b"\n\n")
-            ret = await reader.readuntil(b"? ")
+            await reader.readuntil(b"? ")
             l = [x.decode().split(") ")[1] for x in l.split(b"\n")]
             return l
         except Exception as e:
-            raise BrokenServiceException("Couldn't get the full songlist, {}. {}".format(e, ret))
+            raise BrokenServiceException("Couldn't get the full songlist, {}. {}".format(e, l))
 
     async def putflag(self, logger, task, collection):
         try:
