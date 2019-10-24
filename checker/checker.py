@@ -435,6 +435,9 @@ class DJBoothChecker(BaseChecker):
             writer.write(user.encode() + b"\n")
             await reader.readuntil(b": ")
             writer.write(password.encode() + b"\n")
+            ret = await reader.readline()
+            if "Sorry" in ret:
+                raise Exception("Unable to log in as the user {} doesn't exist!".format(user))
             await reader.readuntil(b"? ")
 
             return reader, writer
