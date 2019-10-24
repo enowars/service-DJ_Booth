@@ -502,6 +502,8 @@ class DJBoothChecker(BaseChecker):
             logger.debug("Done submitting all the songs. Quitting!")
 
             writer.write(b"q\n")
+        except OfflineException as e:
+            raise e
         except Exception as e:
             raise BrokenServiceException("Failed to put flag: {}, {}".format(task.flag, e))
 
@@ -524,6 +526,8 @@ class DJBoothChecker(BaseChecker):
                 raise BrokenServiceException("Flag {} not in songlist {}".format(task.flag, song_list))
 
             writer.write(b"q\n")
+        except OfflineException as e:
+            raise e
         except Exception as e:
             raise BrokenServiceException("Failed to get flag: {}, {}".format(task.flag, e))
 
